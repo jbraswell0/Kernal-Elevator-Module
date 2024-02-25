@@ -5,6 +5,17 @@
 #include <linux/uaccess.h>
 #include <linux/ktime.h>
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("group19");
+MODULE_DESCRIPTION("Obtain the current time and store it in the module.");
+MODULE_VERSION("1.0");
+
+#define ENTRY_NAME "timer"
+#define PERMS 0666
+#define PARENT NULL
+
+#define BUF_LEN 100
+
 static ktime_t time;
 
 static int __init my_timer_init(void){
@@ -21,16 +32,7 @@ static void __exit my_timer_exit(void){
 module_init(my_timer_init); // Register module initialization function
 module_exit(my_timer_exit); // Register module exit function
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("cop4610t");
-MODULE_DESCRIPTION("A simple Linux kernel module");
-MODULE_VERSION("1.0");
 
-#define ENTRY_NAME "hello"
-#define PERMS 0666
-#define PARENT NULL
-
-#define BUF_LEN 100
 static struct proc_dir_entry* proc_entry;
 static char msg[BUF_LEN];
 static int procfs_buf_len;
