@@ -59,7 +59,7 @@ static const struct proc_ops procfile_fops = {
 };
 
 static int __init my_timer_init(void){
-    ktime_get_real_ts64(&time)
+    ktime_get_real_ts64(&time);
     printk(KERN_INFO "Current time: %lld.%09lld\n", (long long)time.tv_sec, (long long)time.tv_nsec); 
     proc_entry = proc_create(ENTRY_NAME, PERMS, PARENT, &procfile_fops);
     if (proc_entry == NULL)
