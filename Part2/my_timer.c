@@ -4,6 +4,7 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/ktime.h>
+#include <linux/timekeeping.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("group19");
@@ -16,22 +17,7 @@ MODULE_VERSION("1.0");
 
 #define BUF_LEN 100
 
-static ktime_t time;
-
-static int __init my_timer_init(void){
-    time = ktime_get_real_ts64();
-
-    printk(KERN_INFO "Timer: Current time: %lld\n", time.tv64)
-    return 0;
-}
-
-static void __exit my_timer_exit(void){
-    printk(KERN_INFO "Timer: Exiting\n");
-}
-
-module_init(my_timer_init); // Register module initialization function
-module_exit(my_timer_exit); // Register module exit function
-
+struct timespec64 time;
 
 static struct proc_dir_entry* proc_entry;
 static char msg[BUF_LEN];
@@ -72,16 +58,20 @@ static const struct proc_ops procfile_fops = {
     .proc_write = procfile_write,
 };
 
-static int __init hello_init(void) {
+static int __init my_timer_init(void){
+    ktime_get_real_ts64(&time)
+    printk(KERN_INFO "Current time: %lld.%09lld\n", (long long)time.tv_sec, (long long)time.tv_nsec); 
     proc_entry = proc_create(ENTRY_NAME, PERMS, PARENT, &procfile_fops);
     if (proc_entry == NULL)
         return -ENOMEM;
+
     return 0;
 }
 
-static void __exit hello_exit(void) {
+static void __exit my_timer_exit(void){
     proc_remove(proc_entry);
 }
 
-module_init(hello_init);
-module_exit(hello_exit);
+
+module_init(my_timer_init);
+module_exit(my_timer_exit);
