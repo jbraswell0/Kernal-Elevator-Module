@@ -33,6 +33,11 @@ static ssize_t procfile_read(struct file* file, char* ubuf, size_t count, loff_t
     *ppos = procfs_buf_len;
     printk(KERN_INFO "gave to user %s\n", msg);
 
+    struct timespec64 time;
+
+    ktime_get_real_ts64(&time);
+    printk(KERN_INFO "Current time: %lld.%09ld\n", (long long)time.tv_sec, time.tv_nsec);
+
     return procfs_buf_len;
 }
 
@@ -59,10 +64,6 @@ static const struct proc_ops procfile_fops = {
 };
 
 static int __init my_timer_init(void){
-    struct timespec64 time;
-
-    ktime_get_real_ts64(&time);
-    printk(KERN_INFO "Current time: %lld.%09ld\n", (long long)time.tv_sec, time.tv_nsec);
     proc_entry = proc_create(ENTRY_NAME, PERMS, PARENT, &procfile_fops);
     if (proc_entry == NULL)
         return -ENOMEM;
