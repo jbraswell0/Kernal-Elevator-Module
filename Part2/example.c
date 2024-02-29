@@ -8,6 +8,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("cop4610t");
 MODULE_DESCRIPTION("A simple Linux kernel module");
 MODULE_VERSION("1.0");
+//copy_to_user(buf, message, len)
+//return len
 
 #define ENTRY_NAME "hello"
 #define PERMS 0666
