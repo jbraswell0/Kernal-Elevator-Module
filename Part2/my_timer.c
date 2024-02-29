@@ -28,15 +28,15 @@ static ssize_t procfile_read(struct file* file, char* ubuf, size_t count, loff_t
     if (*ppos > 0 || count < procfs_buf_len)
         return 0;
 
-    if (copy_to_user(ubuf, msg,procfs_buf_len))
-        return -EFAULT;
-    *ppos = procfs_buf_len;
-    printk(KERN_INFO "gave to user %s\n", msg);
-
     struct timespec64 time;
 
     ktime_get_real_ts64(&time);
     printk(KERN_INFO "Current time: %lld.%09ld\n", (long long)time.tv_sec, time.tv_nsec);
+
+    if (copy_to_user(ubuf, msg,procfs_buf_len))
+        return -EFAULT;
+    *ppos = procfs_buf_len;
+    printk(KERN_INFO "gave to user %s\n", msg);
 
     return procfs_buf_len;
 }
