@@ -42,8 +42,8 @@ __used __section("__versions") = {
 	{ 0xa916b694, "strnlen" },
 	{ 0x88db9f48, "__check_object_size" },
 	{ 0x6b10bee1, "_copy_to_user" },
-	{ 0xcbd4898c, "fortify_panic" },
 	{ 0xf0fdf6cb, "__stack_chk_fail" },
+	{ 0xcbd4898c, "fortify_panic" },
 	{ 0xbdfb6dbb, "__fentry__" },
 	{ 0xf43803e8, "proc_create" },
 	{ 0x5b8239ca, "__x86_return_thunk" },
@@ -53,4 +53,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "E18514F1CE463EEC66F68BC");
+MODULE_INFO(srcversion, "DB57A569601ADCBA712F3E9");
