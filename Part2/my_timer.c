@@ -17,7 +17,6 @@ MODULE_VERSION("1.0");
 #define BUF_LEN 100
 
 static struct proc_dir_entry* proc_entry;
-static char msg[BUF_LEN];
 static int procfs_buf_len;
 
 static ssize_t procfile_read(struct file* file, char* ubuf, size_t count, loff_t *ppos)
