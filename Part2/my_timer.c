@@ -17,16 +17,34 @@ MODULE_VERSION("1.0");
 #define BUF_LEN 100
 
 static struct proc_dir_entry* proc_entry;
+static char msg[BUF_LEN];
 static int procfs_buf_len;
+static struct timespec64 prev_time;
 
 static ssize_t procfile_read(struct file* file, char* ubuf, size_t count, loff_t *ppos)
 {
     struct timespec64 time;
     char buf[BUF_LEN];
+    long long elapsed_sec, elapsed_nsec;
 
     ktime_get_real_ts64(&time);
 
-    sprintf(buf, "current time: %lld.%09ld\n", (long long)time.tv_sec, time.tv_nsec);
+    if (prev_time.tv_sec != 0 || prev_time.tv_nsec != 0) {
+        elapsed_sec = time.tv_sec - prev_time.tv_sec;
+        elapsed_nsec = time.tv_nsec - prev_time.tv_nsec;
+
+        if (elapsed_nsec < 0) {
+            elapsed_sec--;
+            elapsed_nsec += 1000000000;
+        }
+
+        sprintf(buf, "Elapsed time since last call: %lld.%09ld seconds\n",
+                elapsed_sec, elapsed_nsec);
+    } else {
+        strcpy(buf, "No previous call recorded.\n");
+    }
+
+    prev_time = time;
 
     procfs_buf_len = strlen(buf);
 
