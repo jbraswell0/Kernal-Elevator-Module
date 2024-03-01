@@ -19,50 +19,32 @@ MODULE_VERSION("1.0");
 static struct proc_dir_entry* proc_entry;
 static char msg[BUF_LEN];
 static int procfs_buf_len;
-static char * message;
+
 static ssize_t procfile_read(struct file* file, char* ubuf, size_t count, loff_t *ppos)
 {
-    char * buf = kmalloc (sizeof(char) * 100, __GFP_RECLAIM);
-    if (buf == NULL)
-    {
-	printk(KERN_WARNING "print_time");
-	return -ENOMEM;
-    }
     struct timespec64 time;
+    char buf[BUF_LEN];
+
     ktime_get_real_ts64(&time);
 
-    strcpy(msg, "");
-    sprintf(buf, "current time: %lld.%09ld\n", time.tv_sec, time.tv_nsec); 
-    strcat(msg, buf);
+    sprintf(buf, "current time: %lld.%09ld\n", (long long)time.tv_sec, time.tv_nsec);
 
-    printk(KERN_INFO "proc_read\n");
-    procfs_buf_len = strlen(msg);
+    procfs_buf_len = strlen(buf);
+
     if (*ppos > 0 || count < procfs_buf_len)
-        return 0
+        return 0;
 
-    if (copy_to_user(ubuf, msg,procfs_buf_len))
+    if (copy_to_user(ubuf, buf, procfs_buf_len))
         return -EFAULT;
+
     *ppos = procfs_buf_len;
-    printk(KERN_INFO "gave to user %s\n", msg);
 
     return procfs_buf_len;
 }
 
-
-
 static ssize_t procfile_write(struct file* file, const char* ubuf, size_t count, loff_t* ppos) {
     printk(KERN_INFO "proc_write\n");
-    if (count > BUF_LEN)
-        procfs_buf_len = BUF_LEN;
-    else
-        procfs_buf_len = count;
-
-    if (copy_from_user(msg, ubuf, procfs_buf_len)) {
-        printk(KERN_WARNING "Failed to copy data from user space\n");
-        return -EFAULT;
-    }
-    printk(KERN_INFO "got from user: %s\n", msg);
-    return procfs_buf_len;
+    return -EPERM; // Disallow writing to /proc/timer
 }
 
 static const struct proc_ops procfile_fops = {
@@ -77,11 +59,9 @@ static int __init my_timer_init(void){
     return 0;
 }
 
-
 static void __exit my_timer_exit(void){
     proc_remove(proc_entry);
 }
-
 
 module_init(my_timer_init);
 module_exit(my_timer_exit);
