@@ -38,12 +38,7 @@ static ssize_t procfile_read(struct file* file, char* ubuf, size_t count, loff_t
     printk(KERN_INFO "proc_read\n");
     procfs_buf_len = strlen(msg);
     if (*ppos > 0 || count < procfs_buf_len)
-        return 0;
-
-    struct timespec64 time;
-
-    ktime_get_real_ts64(&time);
-    printk(KERN_INFO "Current time: %lld.%09ld\n", (long long)time.tv_sec, time.tv_nsec);
+        return 0
 
     if (copy_to_user(ubuf, msg,procfs_buf_len))
         return -EFAULT;
