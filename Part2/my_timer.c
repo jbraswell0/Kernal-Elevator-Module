@@ -4,7 +4,6 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/ktime.h>
-#include <linux/timekeeping.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("group19");
@@ -20,9 +19,22 @@ MODULE_VERSION("1.0");
 static struct proc_dir_entry* proc_entry;
 static char msg[BUF_LEN];
 static int procfs_buf_len;
-
+static char * message;
 static ssize_t procfile_read(struct file* file, char* ubuf, size_t count, loff_t *ppos)
 {
+    char * buf = kmalloc (sizeof(char) * 100, __GFP_RECLAIM);
+    if (buf == NULL)
+    {
+	printk(KERN_WARNING "print_time");
+	return -ENOMEM;
+    }
+    struct timespec64 time;
+    ktime_get_real_ts64(&time);
+
+    strcpy(msg, "");
+    sprintf(buf, "current time: %lld.%09ld\n", time.tv_sec, time.tv_nsec); 
+    strcat(msg, buf);
+
     printk(KERN_INFO "proc_read\n");
     procfs_buf_len = strlen(msg);
     if (*ppos > 0 || count < procfs_buf_len)
@@ -59,10 +71,6 @@ static const struct proc_ops procfile_fops = {
 };
 
 static int __init my_timer_init(void){
-    struct timespec64 time;
-
-    ktime_get_real_ts64(&time);
-    printk(KERN_INFO "Current time: %lld.%09ld\n", (long long)time.tv_sec, time.tv_nsec);
     proc_entry = proc_create(ENTRY_NAME, PERMS, PARENT, &procfile_fops);
     if (proc_entry == NULL)
         return -ENOMEM;
