@@ -14,7 +14,7 @@ MODULE_VERSION("1.0");
 #define PERMS 0666
 #define PARENT NULL
 
-#define BUF_LEN 100
+#define BUF_LEN 200 // Increased buffer size to accommodate both messages
 
 static struct proc_dir_entry* proc_entry;
 static char msg[BUF_LEN];
@@ -38,10 +38,11 @@ static ssize_t procfile_read(struct file* file, char* ubuf, size_t count, loff_t
             elapsed_nsec += 1000000000;
         }
 
-        sprintf(buf, "Elapsed time since last call: %lld.%09ld seconds\n",
-                elapsed_sec, elapsed_nsec);
+        sprintf(buf, "Current time: %lld.%09ld\nElapsed time since last call: %lld.%09ld seconds\n",
+                (long long)time.tv_sec, time.tv_nsec, elapsed_sec, elapsed_nsec);
     } else {
-        strcpy(buf, "No previous call recorded.\n");
+        sprintf(buf, "Current time: %lld.%09ld\nNo previous call recorded.\n",
+                (long long)time.tv_sec, time.tv_nsec);
     }
 
     prev_time = time;
