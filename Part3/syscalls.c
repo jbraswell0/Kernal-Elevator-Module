@@ -1,38 +1,32 @@
-#include <linux/linkage.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/syscalls.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
-// System call stubs
-int (*STUB_start_elevator)(void) = NULL;
-int (*STUB_issue_request)(int, int, int) = NULL;
-int (*STUB_stop_elevator)(void) = NULL;
 
-EXPORT_SYMBOL(STUB_start_elevator);
-EXPORT_SYMBOL(STUB_issue_request);
-EXPORT_SYMBOL(STUB_stop_elevator);
+#define SYS_elevator_start  448
+#define SYS_issue_request   449
+#define SYS_elevator_stop   450
 
-// System call wrappers
-SYSCALL_DEFINE0(start_elevator) {
-    printk(KERN_NOTICE "Inside SYSCALL_DEFINE0 block: %s\n", __FUNCTION__);
-    if (STUB_start_elevator != NULL)
-        return STUB_start_elevator();
-    else
-        return -ENOSYS;
-}
+long (*elevator_start)(void);
+long (*issue_request)(int, int, int);
+long (*elevator_stop)(void);
 
-SYSCALL_DEFINE3(issue_request, int, start_floor, int, destination_floor, int, t>
-    printk(KERN_NOTICE "Inside SYSCALL_DEFINE3 block: %s: Request from floor %d>
-    if (STUB_issue_request != NULL)
-        return STUB_issue_request(start_floor, destination_floor, type);
-    else
-        return -ENOSYS;
-}
+int main() {
+    elevator_start = (long (*)(void)) syscall(sys_elevator_start);
+    issue_request = (long (*)(int, int, int)) syscall(sys_issue_request);
+    elevator_stop = (long (*)(void)) syscall(sys_elevator_stop);
 
-SYSCALL_DEFINE0(stop_elevator) {
-    printk(KERN_NOTICE "Inside SYSCALL_DEFINE0 block: %s\n", __FUNCTION__);
-    if (STUB_stop_elevator != NULL)
-        return STUB_stop_elevator();
-    else
-        return -ENOSYS;
+    printf("Calling elevator_start...\n");
+    long start_result = elevator_start();
+    printf("Result of elevator_start: %ld\n", start_result);
+
+    printf("Calling issue_request...\n");
+    long request_result = issue_request(1, 10, 5); 
+    printf("Result of issue_request: %ld\n", request_result);
+
+    printf("Calling elevator_stop...\n");
+    long stop_result = elevator_stop();
+    printf("Result of elevator_stop: %ld\n", stop_result);
+
+    return 0;
 }
