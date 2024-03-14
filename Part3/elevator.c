@@ -67,7 +67,6 @@ static int __init elevator_init(void) {
 static void __exit elevator_exit(void) {
     proc_remove(elevator_entry);
     mutex_destroy(&elevator_mutex); // Cleanup the mutex
-    // Here, you'd also clean up any dynamically allocated memory, etc.
 }
 
 module_init(elevator_init);
