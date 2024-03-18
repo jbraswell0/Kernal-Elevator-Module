@@ -8,7 +8,7 @@
 #include <linux/kthread.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Group 19");
+MODULE_AUTHOR("Your Name");
 MODULE_DESCRIPTION("Elevator kernel module");
 
 #define ENTRY_NAME "elevator"
@@ -76,8 +76,6 @@ int start_elevator(void) {
     mutex_unlock(&elevator_mutex);
     return 0;
 }
-
-
 
 static int elevator_thread_function(void *data) {
     while (!kthread_should_stop()) {
