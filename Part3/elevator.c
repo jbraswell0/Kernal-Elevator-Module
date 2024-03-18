@@ -64,6 +64,21 @@ static void load_passengers(void);
 static void move_up(void);
 static void move_down(void);
 
+int start_elevator(void) {
+    mutex_lock(&elevator_mutex);
+    if (elevator.state != OFFLINE) {
+        mutex_unlock(&elevator_mutex);
+        pr_err("Elevator cannot be started. It is not in the OFFLINE state.\n");
+        return -EINVAL; 
+    }
+    elevator.state = IDLE;
+    pr_info("Elevator started successfully.\n");
+    mutex_unlock(&elevator_mutex);
+    return 0;
+}
+
+
+
 static int elevator_thread_function(void *data) {
     while (!kthread_should_stop()) {
         // Elevator movement logic
