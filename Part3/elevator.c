@@ -63,6 +63,7 @@ static void unload_passengers(void);
 static void load_passengers(void);
 static void move_up(void);
 static void move_down(void);
+static int get_passenger_weight(char passenger_type);
 
 int start_elevator(void) {
     mutex_lock(&elevator_mutex);
@@ -142,6 +143,21 @@ static void move_down(void) {
     elevator.current_floor--;
     if (elevator.current_floor == 1) {
         elevator.state = UP; // Change direction when reaching the bottom floor
+    }
+}
+
+static int get_passenger_weight(char passenger_type) {
+    switch (passenger_type) {
+        case 'P':
+            return 1;
+        case 'L':
+            return 2;
+        case 'B':
+            return 3;
+        case 'V':
+            return 0.5;
+        default:
+            return 0;
     }
 }
 
