@@ -58,6 +58,11 @@ static Elevator elevator = {
 
 static Floor floors[MAX_FLOORS];
 
+static void unload_passengers();
+static void load_passengers();
+static void move_up();
+static void move_down();
+
 static int elevator_thread_function(void *data) {
     while (!kthread_should_stop()) {
         // Elevator movement logic
