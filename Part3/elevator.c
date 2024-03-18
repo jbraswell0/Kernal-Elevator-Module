@@ -8,7 +8,7 @@
 #include <linux/kthread.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Your Name");
+MODULE_AUTHOR("Group 19");
 MODULE_DESCRIPTION("Elevator kernel module");
 
 #define ENTRY_NAME "elevator"
