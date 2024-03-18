@@ -58,10 +58,11 @@ static Elevator elevator = {
 
 static Floor floors[MAX_FLOORS];
 
-static void unload_passengers();
-static void load_passengers();
-static void move_up();
-static void move_down();
+// Function prototypes
+static void unload_passengers(void);
+static void load_passengers(void);
+static void move_up(void);
+static void move_down(void);
 
 static int elevator_thread_function(void *data) {
     while (!kthread_should_stop()) {
@@ -85,7 +86,7 @@ static int elevator_thread_function(void *data) {
     return 0;
 }
 
-static void unload_passengers() {
+static void unload_passengers(void) {
     Passenger *passenger, *temp;
     list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
         if (passenger->destination_floor == elevator.current_floor) {
@@ -99,7 +100,7 @@ static void unload_passengers() {
     }
 }
 
-static void load_passengers() {
+static void load_passengers(void) {
     Floor *floor = &floors[elevator.current_floor - 1];
     Passenger *passenger, *temp;
     list_for_each_entry_safe(passenger, temp, &floor->passengers, list) {
@@ -117,14 +118,14 @@ static void load_passengers() {
     }
 }
 
-static void move_up() {
+static void move_up(void) {
     elevator.current_floor++;
     if (elevator.current_floor == MAX_FLOORS) {
         elevator.state = DOWN; // Change direction when reaching the top floor
     }
 }
 
-static void move_down() {
+static void move_down(void) {
     elevator.current_floor--;
     if (elevator.current_floor == 1) {
         elevator.state = UP; // Change direction when reaching the bottom floor
