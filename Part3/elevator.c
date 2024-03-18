@@ -133,9 +133,14 @@ static void move_down(void) {
 }
 
 static ssize_t elevator_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos) {
-    char buf[4096];
-    int len = 0;
+    char *buf;
+    ssize_t len = 0;
     Passenger *passenger;
+
+    buf = kmalloc(4096, GFP_KERNEL); // Dynamically allocate memory
+    if (!buf) {
+        return -ENOMEM; // Memory allocation failed
+    }
 
     mutex_lock(&elevator_mutex);
     len += sprintf(buf + len, "Elevator state: ");
@@ -177,7 +182,10 @@ static ssize_t elevator_read(struct file *file, char __user *ubuf, size_t count,
 
     mutex_unlock(&elevator_mutex);
 
-    return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+    // Copy buffer to user space
+    len = simple_read_from_buffer(ubuf, count, ppos, buf, len);
+    kfree(buf); // Free dynamically allocated memory
+    return len;
 }
 
 static const struct proc_ops elevator_fops = {
