@@ -65,6 +65,7 @@ static void move_up(void);
 static void move_down(void);
 static int get_passenger_weight(char passenger_type);
 
+extern int (*STUB_start_elevator)(void);
 int start_elevator(void) {
     mutex_lock(&elevator_mutex);
     if (elevator.state != OFFLINE) {
@@ -77,6 +78,17 @@ int start_elevator(void) {
     mutex_unlock(&elevator_mutex);
     return 0;
 }
+
+extern int (*STUB_stop_elevator)(void);
+int stop_elevator(void) {
+    return -EINVAL;
+}
+
+extern int (*STUB_issue_request)(int, int, int);
+int issue_request(int start, int dest, int type) {
+    return -EINVAL;
+}
+
 
 static int elevator_thread_function(void *data) {
     while (!kthread_should_stop()) {
@@ -222,6 +234,10 @@ static const struct proc_ops elevator_fops = {
 };
 
 static int __init elevator_init(void) {
+    STUB_start_elevator = NULL;
+    STUB_issue_request = NULL;
+    STUB_stop_elevator = NULL;
+    
     elevator_entry = proc_create(ENTRY_NAME, PERMS, PARENT, &elevator_fops);
     mutex_init(&elevator_mutex);
     if (!elevator_entry) {
