@@ -8,7 +8,7 @@
 #include <linux/kthread.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Your Name");
+MODULE_AUTHOR("Group 19");
 MODULE_DESCRIPTION("Elevator kernel module");
 
 #define ENTRY_NAME "elevator"
@@ -63,7 +63,6 @@ static void unload_passengers(void);
 static void load_passengers(void);
 static void move_up(void);
 static void move_down(void);
-static int get_passenger_weight(char passenger_type);
 
 extern int (*STUB_start_elevator)(void);
 int start_elevator(void) {
@@ -88,7 +87,6 @@ extern int (*STUB_issue_request)(int, int, int);
 int issue_request(int start, int dest, int type) {
     return -EINVAL;
 }
-
 
 static int elevator_thread_function(void *data) {
     while (!kthread_should_stop()) {
@@ -158,21 +156,6 @@ static void move_down(void) {
     }
 }
 
-static int get_passenger_weight(char passenger_type) {
-    switch (passenger_type) {
-        case 'P':
-            return 1;
-        case 'L':
-            return 2;
-        case 'B':
-            return 3;
-        case 'V':
-            return 0.5;
-        default:
-            return 0;
-    }
-}
-
 static ssize_t elevator_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos) {
     char *buf;
     ssize_t len = 0;
@@ -234,10 +217,9 @@ static const struct proc_ops elevator_fops = {
 };
 
 static int __init elevator_init(void) {
-    STUB_start_elevator = NULL;
-    STUB_issue_request = NULL;
-    STUB_stop_elevator = NULL;
-    
+    STUB_start_elevator = start_elevator;
+    STUB_issue_request = issue_request;
+    STUB_stop_elevator = stop_elevator;
     elevator_entry = proc_create(ENTRY_NAME, PERMS, PARENT, &elevator_fops);
     mutex_init(&elevator_mutex);
     if (!elevator_entry) {
@@ -264,6 +246,10 @@ static int __init elevator_init(void) {
 }
 
 static void __exit elevator_exit(void) {
+    STUB_start_elevator = NULL;
+    STUB_issue_request = NULL;
+    STUB_stop_elevator = NULL;
+
     kthread_stop(elevator_thread);
     proc_remove(elevator_entry);
     mutex_destroy(&elevator_mutex);
