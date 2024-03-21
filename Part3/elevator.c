@@ -80,7 +80,33 @@ int start_elevator(void) {
 
 extern int (*STUB_stop_elevator)(void);
 int stop_elevator(void) {
-    return -EINVAL;
+
+Passenger *passenger, *temp;
+
+    mutex_lock(&elevator_mutex);
+
+    if (elevator.state == OFFLINE) {
+        mutex_unlock(&elevator_mutex);
+        return 0; 
+    }
+
+    elevator.state = OFFLINE;
+
+    list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
+        list_del(&passenger->list); 
+        kfree(passenger); 
+    }
+
+    mutex_unlock(&elevator_mutex);
+    if (elevator_thread) {
+        kthread_stop(elevator_thread);
+        elevator_thread = NULL; 
+    }
+
+    pr_info("Elevator stopped successfully.\n");
+
+    return 0;
+
 }
 
 extern int (*STUB_issue_request)(int, int, int);
