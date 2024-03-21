@@ -186,9 +186,10 @@ static int elevator_thread_function(void *data) {
         if (elevator.state == LOADING) {
             // Unload passengers
             unload_passengers();
+            msleep(10000);
             // Load passengers
             load_passengers(); // Call to load passengers onto the elevator
-            msleep(1000); // Wait 1 second for loading/unloading
+            msleep(10000); // Wait 1 second for loading/unloading
         } else if (elevator.state == UP) {
             move_up();
             msleep(2000); // Wait 2 seconds between floors
