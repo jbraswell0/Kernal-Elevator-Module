@@ -111,10 +111,45 @@ mutex_lock(&elevator_mutex);
 }
 
 
-extern int (*STUB_issue_request)(int, int, int);
-int issue_request(int start, int dest, int type) {
-    return -EINVAL;
+extern int (*STUB_issue_request)(int, int, char);
+int issue_request(int start, int dest, char type) {
+    if (start < 1 || start > MAX_FLOORS || dest < 1 || dest > MAX_FLOORS || sta>
+        pr_err("Invalid request parameters.\n");
+ return -EINVAL;
 }
+
+// Allocate memory for the new passenger
+Passenger *new_passenger = kmalloc(sizeof(Passenger), GFP_KERNEL);
+if (!new_passenger) {
+    pr_err("Cannot allocate memory for new passenger.\n");
+    return -ENOMEM;
+}
+
+new_passenger->type = type;
+new_passenger->destination_floor = dest;
+new_passenger->weight = 1; // Assuming a default weight, adjust as necessary
+
+mutex_lock(&floors[start - 1].floor_mutex);
+list_add_tail(&new_passenger->list, &floors[start - 1].passengers);
+floors[start - 1].num_passengers_waiting++;
+
+mutex_unlock(&floors[start - 1].floor_mutex);
+
+pr_info("New passenger request added: Start: %d, Dest: %d, Type: %c\n", start, >
+
+mutex_lock(&elevator_mutex);
+if (elevator.state == IDLE) {
+    if (elevator.current_floor < start) {
+        elevator.state = UP;
+    } else if (elevator.current_floor > start) {
+        elevator.state = DOWN;
+    } else {
+        elevator.state = LOADING;
+    }
+}
+return 0;
+}
+
 
 static int elevator_thread_function(void *data) {
     while (!kthread_should_stop()) {
