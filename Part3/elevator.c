@@ -80,11 +80,11 @@ int start_elevator(void) {
 
 extern int (*STUB_stop_elevator)(void);
 int stop_elevator(void) {
-
-Passenger *passenger, *temp;
+    Passenger *passenger, *temp;
 
     mutex_lock(&elevator_mutex);
 
+    // Check if the elevator is already offline.
     if (elevator.state == OFFLINE) {
         mutex_unlock(&elevator_mutex);
         return 0; 
@@ -92,22 +92,24 @@ Passenger *passenger, *temp;
 
     elevator.state = OFFLINE;
 
-    list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
-        list_del(&passenger->list); 
-        kfree(passenger); 
-    }
-
     mutex_unlock(&elevator_mutex);
+
     if (elevator_thread) {
         kthread_stop(elevator_thread);
         elevator_thread = NULL; 
     }
+mutex_lock(&elevator_mutex);
+    list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
+        list_del(&passenger->list); 
+        kfree(passenger); 
+    }
+    mutex_unlock(&elevator_mutex);
 
     pr_info("Elevator stopped successfully.\n");
 
     return 0;
-
 }
+
 
 extern int (*STUB_issue_request)(int, int, int);
 int issue_request(int start, int dest, int type) {
