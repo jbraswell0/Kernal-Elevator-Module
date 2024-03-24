@@ -67,7 +67,7 @@ static void move_up(void);
 static void move_down(void);
 static int start_elevator(void);
 static int stop_elevator(void);
-static int issue_request(int,int,char,int);
+static int issue_request(int,int,int);
 
 extern int (*STUB_start_elevator)(void);
 int start_elevator(void) {
@@ -115,39 +115,12 @@ mutex_lock(&elevator_mutex);
     return 0;
 }
 
-extern int (*STUB_issue_request)(int, int, char, int);
-int issue_request(int start, int dest, char type, int button) {
-    if (start < 1 || start > MAX_FLOORS || dest < 1 || dest > MAX_FLOORS || button < -1 || button > 1) {
+extern int (*STUB_issue_request)(int, int, int);
+int issue_request(int start, int dest, int type) {
+    if (start < 1 || start > MAX_FLOORS || dest < 1 || dest > MAX_FLOORS) {
         return -EINVAL;
     }
 
-    if (button == 1) { // Button indicating request to go up pressed
-        if (start != elevator.current_floor) {
-            return -EINVAL; // Elevator is not at the requested floor
-        }
-        if (elevator.state != IDLE) {
-            return -EBUSY; // Elevator is not in a state to handle the request
-        }
-        if (start < dest) {
-            elevator.state = UP; // Set elevator state to UP
-        } else if (start > dest) {
-            elevator.state = DOWN; // Set elevator state to DOWN
-        }
-        return 0;
-    } else if (button == -1) { // Button indicating request to go down pressed
-        if (start != elevator.current_floor) {
-            return -EINVAL; // Elevator is not at the requested floor
-        }
-        if (elevator.state != IDLE) {
-            return -EBUSY; // Elevator is not in a state to handle the request
-        }
-        if (start < dest) {
-            elevator.state = DOWN; // Set elevator state to DOWN
-        } else if (start > dest) {
-            elevator.state = UP; // Set elevator state to UP
-        }
-        return 0;
-    }
 
     // Allocate memory for the new passenger
     Passenger *new_passenger = kmalloc(sizeof(Passenger), GFP_KERNEL);
@@ -158,8 +131,26 @@ int issue_request(int start, int dest, char type, int button) {
 
     new_passenger->type = type;
     new_passenger->destination_floor = dest;
-    new_passenger->weight = 1; // Assuming a default weight, adjust as necessary
 
+    // Assign weight based on passenger type
+    switch(type) {
+    case 1: // Part-time worker
+        new_passenger->weight = 1;
+        break;
+    case 2: // Lawyer
+        new_passenger->weight = 1.5;
+        break;
+    case 3: // Boss
+        new_passenger->weight = 2;
+        break;
+    case 4: // Visitor
+        new_passenger->weight = 0.5;
+        break;
+    default:
+        printk("Invalid passenger type.\n");
+        kfree(new_passenger);
+        return -EINVAL;
+    }
     mutex_lock(&floors[start - 1].floor_mutex);
     list_add_tail(&new_passenger->list, &floors[start - 1].passengers);
     floors[start - 1].num_passengers_waiting++;
