@@ -68,6 +68,8 @@ static void move_down(void);
 static int start_elevator(void);
 static int stop_elevator(void);
 static int issue_request(int,int,int);
+static bool should_stop(int);
+static void decide_next_action(void);
 
 extern int (*STUB_start_elevator)(void);
 int start_elevator(void) {
@@ -135,15 +137,19 @@ int issue_request(int start, int dest, int type) {
     // Assign weight based on passenger type
     switch(type) {
     case 1: // Part-time worker
+	new_passenger->type ='P';
         new_passenger->weight = 1;
         break;
     case 2: // Lawyer
+        new_passenger->type ='L';
         new_passenger->weight = 1.5;
         break;
     case 3: // Boss
+        new_passenger->type ='B';
         new_passenger->weight = 2;
         break;
     case 4: // Visitor
+        new_passenger->type ='V';
         new_passenger->weight = 0.5;
         break;
     default:
@@ -173,25 +179,69 @@ int issue_request(int start, int dest, int type) {
 }
 static int elevator_thread_function(void *data) {
     while (!kthread_should_stop()) {
-        // Elevator movement logic
-        if (elevator.state == LOADING) {
-            // Unload passengers
-            unload_passengers();
-            msleep(10000);
-            // Load passengers
-            load_passengers(); // Call to load passengers onto the elevator
-            msleep(10000); // Wait 1 second for loading/unloading
-        } else if (elevator.state == UP) {
-            move_up();
-            msleep(2000); // Wait 2 seconds between floors
-        } else if (elevator.state == DOWN) {
-            move_down();
-            msleep(2000); // Wait 2 seconds between floors
-        } else {
-            msleep(100); // Idle state, wait for next action
+        // Check the elevator's current state
+        switch(elevator.state) {
+            case LOADING:
+                // Unload and load passengers
+                unload_passengers();
+                load_passengers();
+
+                // Simulate loading/unloading time
+                msleep(2000); // 2 seconds = 2000 milliseconds
+
+                // Decide next action: Continue moving or stay idle if no passengers to service
+                decide_next_action();
+                break;
+
+            case UP:
+                move_up();
+                msleep(2000); // Simulate time taken to move between floors
+                break;
+
+            case DOWN:
+                move_down();
+                msleep(2000); // Simulate time taken to move between floors
+                break;
+
+            case IDLE:
+            case OFFLINE:
+                // In IDLE or OFFLINE state, just wait a bit before checking again
+                msleep(100); // Short sleep to prevent busy waiting
+                break;
         }
     }
     return 0;
+}
+
+static void decide_next_action(void) {
+    // Placeholder logic for deciding next action
+    bool upDirectionHasPassengers = false;
+    bool downDirectionHasPassengers = false;
+
+    // Check for passengers above current floor needing to go up or down
+    for (int i = elevator.current_floor; i < MAX_FLOORS; i++) {
+        if (floors[i].num_passengers_waiting > 0) {
+            upDirectionHasPassengers = true;
+            break;
+        }
+    }
+
+    // Check for passengers below current floor needing to go up or down
+    for (int i = elevator.current_floor - 2; i >= 0; i--) { // i starts from current_floor - 2 because array indexing starts at 0
+        if (floors[i].num_passengers_waiting > 0) {
+            downDirectionHasPassengers = true;
+            break;
+        }
+    }
+
+    // Determine next state based on where passengers are waiting
+    if (upDirectionHasPassengers) {
+        elevator.state = UP;
+    } else if (downDirectionHasPassengers) {
+        elevator.state = DOWN;
+    } else {
+        elevator.state = IDLE; // No passengers waiting, go idle
+    }
 }
 static void unload_passengers(void) {
     Passenger *passenger, *temp;
@@ -232,16 +282,43 @@ static void move_up(void) {
     elevator.current_floor++;
     if (elevator.current_floor == MAX_FLOORS) {
         elevator.state = DOWN; // Change direction when reaching the top floor
+    } else {
+        // Check if there are passengers to unload or load at the new current floor
+        if (should_stop(elevator.current_floor)) {
+            elevator.state = LOADING;
+        }
     }
 }
-
 static void move_down(void) {
     elevator.current_floor--;
     if (elevator.current_floor == 1) {
         elevator.state = UP; // Change direction when reaching the bottom floor
+    } else {
+        // Check if there are passengers to unload or load at the new current floor
+        if (should_stop(elevator.current_floor)) {
+            elevator.state = LOADING;
+        }
     }
 }
 
+static bool should_stop(int floor) {
+    Floor *current_floor = &floors[floor - 1];
+    Passenger *passenger;
+    
+    // Check if any passengers in the elevator need to get off at this floor
+    list_for_each_entry(passenger, &elevator.passengers, list) {
+        if (passenger->destination_floor == floor) {
+            return true;
+        }
+    }
+    
+    // Check if there are passengers waiting at this floor
+    if (current_floor->num_passengers_waiting > 0) {
+        return true;
+    }
+    
+    return false;
+}
 static ssize_t elevator_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos) {
     char *buf;
     ssize_t len = 0;
