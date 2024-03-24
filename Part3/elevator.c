@@ -258,16 +258,17 @@ static int get_num_waiting(void) {
 
 static void unload_passengers(void) {
     Passenger *passenger, *temp;
+
+    mutex_lock(&elevator_mutex); // Lock before modifying shared resources
     list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
         if (passenger->destination_floor == elevator.current_floor) {
-            mutex_lock(&elevator_mutex);
-            elevator.total_weight -= passenger->weight;
-            elevator.passenger_count--;
-            list_del(&passenger->list);
-            kfree(passenger);
-            mutex_unlock(&elevator_mutex);
+            elevator.total_weight -= passenger->weight; // Update weight
+            elevator.passenger_count--; // Update passenger count
+            list_del(&passenger->list); // Remove passenger from list
+            kfree(passenger); // Free the passenger structure
         }
     }
+    mutex_unlock(&elevator_mutex); // Unlock after modifications
 }
 
 static void load_passengers(void) {
@@ -299,6 +300,7 @@ static void move_up(void) {
         // Check if there are passengers to unload or load at the new current floor
         if (should_stop(elevator.current_floor)) {
             elevator.state = LOADING;
+            unload_passengers();
         }
     }
 }
@@ -310,6 +312,7 @@ static void move_down(void) {
         // Check if there are passengers to unload or load at the new current floor
         if (should_stop(elevator.current_floor)) {
             elevator.state = LOADING;
+            unload_passengers();
         }
     }
 }
