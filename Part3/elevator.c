@@ -136,19 +136,19 @@ int issue_request(int start, int dest, int type) {
 
     // Assign weight based on passenger type
     switch(type) {
-    case 1: // Part-time worker
+    case 0: // Part-time worker
 	new_passenger->type ='P';
         new_passenger->weight = 1;
         break;
-    case 2: // Lawyer
+    case 1: // Lawyer
         new_passenger->type ='L';
         new_passenger->weight = 1.5;
         break;
-    case 3: // Boss
+    case 2: // Boss
         new_passenger->type ='B';
         new_passenger->weight = 2;
         break;
-    case 4: // Visitor
+    case 3: // Visitor
         new_passenger->type ='V';
         new_passenger->weight = 0.5;
         break;
@@ -243,6 +243,19 @@ static void decide_next_action(void) {
         elevator.state = IDLE; // No passengers waiting, go idle
     }
 }
+
+static int get_num_waiting(void) {
+    int waiting = 0;
+
+    for(int i = 0; i < MAX_FLOORS; i++) {
+	mutex_lock(&floors[i].floor_mutex);
+        waiting += floors[i].num_passengers_waiting;
+	mutex_unlock(&floors[i].floor_mutex);
+    }
+
+    return waiting;
+}
+
 static void unload_passengers(void) {
     Passenger *passenger, *temp;
     list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
@@ -350,9 +363,9 @@ static ssize_t elevator_read(struct file *file, char __user *ubuf, size_t count,
     }
     len += sprintf(buf + len, "Current floor: %d\n", elevator.current_floor); // Include current floor
     len += sprintf(buf + len, "Current load: %d lbs\n", elevator.total_weight);
-    len += sprintf(buf + len, "Passenger count: %d\n", elevator.passenger_count);
+    len += sprintf(buf + len, "Elevator status: ");
     list_for_each_entry(passenger, &elevator.passengers, list) {
-        len += sprintf(buf + len, "Passenger type: %c, Destination floor: %d\n", passenger->type, passenger->destination_floor);
+        len += sprintf(buf + len, "%c%d ", passenger->type, passenger->destination_floor);
     }
     len += sprintf(buf + len, "\n");
 
@@ -368,6 +381,13 @@ static ssize_t elevator_read(struct file *file, char __user *ubuf, size_t count,
     }
 
     mutex_unlock(&elevator_mutex);
+
+    int waiting = get_num_waiting();
+
+    len += sprintf(buf + len, "\n");
+    len += sprintf(buf + len, "Number of passengers: %d\n", elevator.passenger_count);
+    len += sprintf(buf + len, "Number of passengers waiting: %d\n", waiting);
+    len += sprintf(buf + len, "Number of passengers serviced: %d\n", waiting);
 
     // Copy buffer to user space
     len = simple_read_from_buffer(ubuf, count, ppos, buf, len);
