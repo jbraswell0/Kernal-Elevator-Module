@@ -23,6 +23,7 @@ static struct task_struct *elevator_thread;
 #define MAX_PASSENGER_TYPES 4
 #define MAX_PASSENGERS 5
 #define MAX_WEIGHT 7
+#define DECIMAL 5
 
 typedef enum {OFFLINE, IDLE, LOADING, UP, DOWN} ElevatorState;
 
@@ -30,6 +31,7 @@ typedef struct passenger {
     char type; // P, L, B, V
     int destination_floor;
     int weight;
+    bool decimal;
     struct list_head list;
 } Passenger;
 
@@ -124,7 +126,6 @@ int issue_request(int start, int dest, int type) {
     if (start < 1 || start > MAX_FLOORS || dest < 1 || dest > MAX_FLOORS) {
         return -EINVAL;
     }
-
 
     // Allocate memory for the new passenger
     Passenger *new_passenger = kmalloc(sizeof(Passenger), GFP_KERNEL);
@@ -366,7 +367,7 @@ static ssize_t elevator_read(struct file *file, char __user *ubuf, size_t count,
             break;
         case DOWN:
             len += sprintf(buf + len, "DOWN\n");
-            break;
+                 break;
     }
     len += sprintf(buf + len, "Current floor: %d\n", elevator.current_floor); // Include current floor
     len += sprintf(buf + len, "Current load: %d lbs\n", elevator.total_weight);
@@ -435,16 +436,34 @@ static int __init elevator_init(void) {
 }
 
 static void __exit elevator_exit(void) {
+    Passenger *passenger, *temp;
+
     STUB_start_elevator = NULL;
     STUB_issue_request = NULL;
     STUB_stop_elevator = NULL;
 
-    kthread_stop(elevator_thread);
-    proc_remove(elevator_entry);
-    mutex_destroy(&elevator_mutex);
+    if(elevator_thread) {
+        kthread_stop(elevator_thread);
+        elevator_thread = NULL;
+    }   
+
+    list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
+	list_del(&passenger->list);
+	kfree(passenger);
+    }
+
     for (int i = 0; i < MAX_FLOORS; ++i) {
+        list_for_each_entry_safe(passenger, temp, &floors[i].passengers, list) {
+            list_del(&passenger->list);
+            kfree(passenger);
+        }
+
         mutex_destroy(&floors[i].floor_mutex);
     }
+
+    proc_remove(elevator_entry);
+
+    mutex_destroy(&elevator_mutex);
 }
 
 module_init(elevator_init);
