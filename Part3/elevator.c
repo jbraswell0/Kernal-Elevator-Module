@@ -45,6 +45,7 @@ typedef struct elevator {
     int current_floor;
     int total_weight;
     int passenger_count;
+    int total_serviced;
     struct list_head passengers;
     int num_passengers_type[MAX_PASSENGER_TYPES]; // Track number of passengers for each type
 } Elevator;
@@ -54,6 +55,7 @@ static Elevator elevator = {
     .current_floor = 1,
     .total_weight = 0,
     .passenger_count = 0,
+    .total_serviced = 0,
     .num_passengers_type = {0}, // Initialize array to all zeros
     .passengers = LIST_HEAD_INIT(elevator.passengers)
 };
@@ -87,8 +89,8 @@ int start_elevator(void) {
 
 extern int (*STUB_stop_elevator)(void);
 int stop_elevator(void) {
-    Passenger *passenger, *temp;
 
+    Passenger *passenger, *temp;
     mutex_lock(&elevator_mutex);
 
     // Check if the elevator is already offline.
@@ -98,14 +100,14 @@ int stop_elevator(void) {
     }
 
     elevator.state = OFFLINE;
-
     mutex_unlock(&elevator_mutex);
 
     if (elevator_thread) {
         kthread_stop(elevator_thread);
         elevator_thread = NULL; 
     }
-mutex_lock(&elevator_mutex);
+
+    mutex_lock(&elevator_mutex);
     list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
         list_del(&passenger->list); 
         kfree(passenger); 
@@ -162,8 +164,6 @@ int issue_request(int start, int dest, int type) {
     floors[start - 1].num_passengers_waiting++;
     mutex_unlock(&floors[start - 1].floor_mutex);
 
-    printk("New passenger request added: Start: %d, Dest: %d, Type: %c\n", start, dest, type);
-
     mutex_lock(&elevator_mutex);
     if (elevator.state == IDLE) {
         if (elevator.current_floor < start) {
@@ -177,7 +177,8 @@ int issue_request(int start, int dest, int type) {
     mutex_unlock(&elevator_mutex);
     return 0;
 }
-static int elevator_thread_function(void *data) {
+
+static int elevator_movement(void *data) {
     while (!kthread_should_stop()) {
         // Check the elevator's current state
         switch(elevator.state) {
@@ -214,9 +215,25 @@ static int elevator_thread_function(void *data) {
 }
 
 static void decide_next_action(void) {
-    // Placeholder logic for deciding next action
+
+    Passenger *passenger, *temp;
+
     bool upDirectionHasPassengers = false;
     bool downDirectionHasPassengers = false;
+    bool upDirectionHasDest = false;
+    bool downDirectionHasDest = false;
+
+    list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
+        if (passenger->destination_floor > elevator.current_floor) {
+            upDirectionHasDest = true;
+        }
+    }
+
+    list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
+        if (passenger->destination_floor < elevator.current_floor) {
+            downDirectionHasDest = true;
+        }
+    }
 
     // Check for passengers above current floor needing to go up or down
     for (int i = elevator.current_floor; i < MAX_FLOORS; i++) {
@@ -235,9 +252,9 @@ static void decide_next_action(void) {
     }
 
     // Determine next state based on where passengers are waiting
-    if (upDirectionHasPassengers) {
+    if (upDirectionHasPassengers || upDirectionHasDest) {
         elevator.state = UP;
-    } else if (downDirectionHasPassengers) {
+    } else if (downDirectionHasPassengers || downDirectionHasDest) {
         elevator.state = DOWN;
     } else {
         elevator.state = IDLE; // No passengers waiting, go idle
@@ -258,21 +275,21 @@ static int get_num_waiting(void) {
 
 static void unload_passengers(void) {
     Passenger *passenger, *temp;
-
-    mutex_lock(&elevator_mutex); // Lock before modifying shared resources
     list_for_each_entry_safe(passenger, temp, &elevator.passengers, list) {
         if (passenger->destination_floor == elevator.current_floor) {
-            elevator.total_weight -= passenger->weight; // Update weight
-            elevator.passenger_count--; // Update passenger count
-            list_del(&passenger->list); // Remove passenger from list
-            kfree(passenger); // Free the passenger structure
+            mutex_lock(&elevator_mutex);
+            elevator.total_weight -= passenger->weight;
+            elevator.passenger_count--;
+            elevator.total_serviced++;
+            list_del(&passenger->list);
+            kfree(passenger);
+            mutex_unlock(&elevator_mutex);
         }
     }
-    mutex_unlock(&elevator_mutex); // Unlock after modifications
 }
 
 static void load_passengers(void) {
-Passenger *passenger, *temp;
+    Passenger *passenger, *temp;
     Floor *current_floor = &floors[elevator.current_floor - 1];
 
     // Iterate through the passengers waiting on the current floor
@@ -285,7 +302,6 @@ Passenger *passenger, *temp;
             list_add_tail(&passenger->list, &elevator.passengers);
             elevator.total_weight += passenger->weight;
             elevator.passenger_count++;
-            elevator.num_passengers_type[passenger->type - 'A']++; // Increment count for passenger type
             mutex_unlock(&elevator_mutex);
         } else {
             break; // Elevator is full or overweight
@@ -294,26 +310,14 @@ Passenger *passenger, *temp;
 }
 static void move_up(void) {
     elevator.current_floor++;
-    if (elevator.current_floor == MAX_FLOORS) {
-        elevator.state = DOWN; // Change direction when reaching the top floor
-    } else {
-        // Check if there are passengers to unload or load at the new current floor
-        if (should_stop(elevator.current_floor)) {
-            elevator.state = LOADING;
-            unload_passengers();
-        }
-    }
+    if(should_stop(elevator.current_floor)) {
+	elevator.state = LOADING;
+    } 
 }
 static void move_down(void) {
     elevator.current_floor--;
-    if (elevator.current_floor == 1) {
-        elevator.state = UP; // Change direction when reaching the bottom floor
-    } else {
-        // Check if there are passengers to unload or load at the new current floor
-        if (should_stop(elevator.current_floor)) {
-            elevator.state = LOADING;
-            unload_passengers();
-        }
+    if(should_stop(elevator.current_floor)) {
+        elevator.state = LOADING;
     }
 }
 
@@ -390,7 +394,7 @@ static ssize_t elevator_read(struct file *file, char __user *ubuf, size_t count,
     len += sprintf(buf + len, "\n");
     len += sprintf(buf + len, "Number of passengers: %d\n", elevator.passenger_count);
     len += sprintf(buf + len, "Number of passengers waiting: %d\n", waiting);
-    len += sprintf(buf + len, "Number of passengers serviced: %d\n", waiting);
+    len += sprintf(buf + len, "Number of passengers serviced: %d\n", elevator.total_serviced);
 
     // Copy buffer to user space
     len = simple_read_from_buffer(ubuf, count, ppos, buf, len);
@@ -420,7 +424,7 @@ static int __init elevator_init(void) {
     }
 
     // Create kthread for elevator movement
-    elevator_thread = kthread_create(elevator_thread_function, NULL, "elevator_thread");
+    elevator_thread = kthread_create(elevator_movement, NULL, "elevator_thread");
     if (IS_ERR(elevator_thread)) {
         pr_err("Failed to create elevator thread\n");
         return PTR_ERR(elevator_thread);
