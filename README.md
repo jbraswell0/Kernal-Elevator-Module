@@ -1,4 +1,4 @@
-# project2-group-19
+# Simulation of an Elevator using kernal module
 ---------------------------------------------------------------------
 Project 2: Division of Labor (AFTER)
 Operating Systems
